@@ -13,7 +13,7 @@ interface IVerifier {
     ) external;
 }
 
-contract Tornado is ReentrancyGuard {
+contract Trivia is ReentrancyGuard {
     address public verifier;
     Hasher public hasher;
 

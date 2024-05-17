@@ -17,10 +17,10 @@ async function main() {
   const verifierAddress = verifier.address;
 
   // deploy tornado
-  const Tornado = await hre.ethers.getContractFactory("Tornado");
-  const tornado = await Tornado.deploy(hasher.address, verifierAddress);
-  await tornado.deployed();
-  console.log(tornado.address);
+  const Trivia = await hre.ethers.getContractFactory("Trivia");
+  const trivia = await Trivia.deploy(hasher.address, verifierAddress);
+  await trivia.deployed();
+  console.log(trivia.address);
 
   // Verify the Hasher
   if (
@@ -30,7 +30,7 @@ async function main() {
     console.log("Verifying...");
     await verify(hasher.address, []);
     await verify(verifier.address, []);
-    await verify(tornado.address, [hasher.address, verifier.address]);
+    await verify(trivia.address, [hasher.address, verifier.address]);
   }
 }
 
