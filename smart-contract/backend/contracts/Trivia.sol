@@ -1,8 +1,12 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.20;
 
 import {Hasher} from "./MiMCSponge.sol";
-import {ReentrancyGuard} from "./ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 interface IVerifier {
     function verifyProof(
@@ -13,18 +17,36 @@ interface IVerifier {
     ) external;
 }
 
-contract Trivia is ReentrancyGuard {
+contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
+    using SafeERC20 for IERC20;
+
     address public verifier;
     Hasher public hasher;
 
+    IPool public aavePool;
+    address public usdcToken;
+
+    uint256 public totalStaked;
+
+    uint256 public constant LOCK_PERIOD = 90 days;
+    uint256 public timelockId;
+
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
-    uint256 public denomination = 0.1 ether;
 
     /* When a new deposit commitment is added to the Merkle tree, 
     it is placed at the location indicated by nextLeafIdex, 
     which is then incremented so that the next deposit commitment knows where it should be placed. */
     uint256 public nextLeafIdex = 0;
+
+    struct timelockTokenInfo {
+        address owner;
+        uint256 amount;
+        uint256 timelockStart;
+        bool valid;
+    }
+
+    timelockTokenInfo[] public timelockToken;
 
     // Storing the history of Merkle tree roots
     mapping(uint256 => bool) public roots;
@@ -49,19 +71,54 @@ contract Trivia is ReentrancyGuard {
     event Deposit(
         uint256 indexed root,
         uint256[10] hashPairings,
-        uint8[10] pairDirection
+        uint8[10] pairDirection,
+        uint256 amount
     );
-    event Withdrawal(address indexed user, uint256 indexed nullifierHash);
+    event Withdrawal(
+        address indexed user,
+        uint256 indexed nullifierHash,
+        uint256 amount
+    );
 
-    constructor(address _hasher, address _verifier) {
+    constructor(
+        address _hasher,
+        address _verifier,
+        address _usdcToken,
+        address _aavePool
+    ) {
         hasher = Hasher(_hasher);
         verifier = _verifier;
+        usdcToken = _usdcToken;
+        aavePool = IPool(_aavePool);
+        __ERC20_init("TRIVIA", "TRIVIA");
+        __Ownable_init(msg.sender);
     }
 
-    function deposit(uint256 _commitment) external payable nonReentrant {
-        require(msg.value == denomination, "incorrect amount");
+    function deposit(uint256 amount, uint256 _commitment) external {
+        require(amount > 0, "Cannot deposit zero tokens");
+        require(
+            IERC20(usdcToken).balanceOf(msg.sender) >= amount,
+            "Insufficient balance"
+        );
+        require(
+            IERC20(usdcToken).allowance(msg.sender, address(this)) >= amount,
+            "Insufficient allowance"
+        );
         require(!commitments[_commitment], "duplicate commitment hash");
         require(nextLeafIdex < 2 ** treeLevel, "tree full");
+
+        IERC20(usdcToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(usdcToken).approve(address(aavePool), amount);
+        aavePool.supply(usdcToken, amount, address(this), 0);
+
+        timelockToken.push(
+            timelockTokenInfo({
+                owner: msg.sender,
+                amount: amount,
+                timelockStart: block.timestamp,
+                valid: true
+            })
+        );
 
         uint256 newRoot; // Merkle tree root
         uint256[10] memory hashPairings;
@@ -105,15 +162,30 @@ contract Trivia is ReentrancyGuard {
         nextLeafIdex += 1;
 
         commitments[_commitment] = true;
-        emit Deposit(newRoot, hashPairings, hashDirections);
+
+        totalStaked += amount;
+        timelockId++;
+
+        emit Deposit(newRoot, hashPairings, hashDirections, amount);
     }
 
     function withdraw(
+        uint256 id,
         uint[2] calldata _pA,
         uint[2][2] calldata _pB,
         uint[2] calldata _pC,
         uint[2] calldata _pubSignals
-    ) external payable nonReentrant {
+    ) external {
+        require(id < timelockId, "Invalid id");
+        timelockTokenInfo storage lockInfo = timelockToken[id];
+
+        require(msg.sender == lockInfo.owner, "Only owner can redeem");
+        require(
+            block.timestamp >= lockInfo.timelockStart + LOCK_PERIOD,
+            "Still in lock period"
+        );
+        require(lockInfo.valid, "Not valid");
+
         uint256 _root = _pubSignals[0];
         uint256 _nullifierHash = _pubSignals[1];
 
@@ -132,11 +204,42 @@ contract Trivia is ReentrancyGuard {
         require(verifyOK, "invalid proof");
 
         nullifierHashs[_nullifierHash] = true;
-        address payable target = payable(msg.sender);
 
-        (bool success, ) = target.call{value: denomination}("");
-        require(success, "transaction failed");
+        aavePool.withdraw(usdcToken, amount, address(this));
+        IERC20(usdcToken).safeTransfer(msg.sender, lockInfo.amount);
+        totalStaked -= lockInfo.amount;
+        lockInfo.valid = false;
 
-        emit Withdrawal(msg.sender, _nullifierHash);
+        emit Withdrawal(msg.sender, _nullifierHash, lockInfo.amount);
+    }
+
+    function getAccountInformation()
+        external
+        view
+        returns (
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 availableBorrowsBase,
+            uint256 currentLiquidationThreshold,
+            uint256 ltv,
+            uint256 healthFactor
+        )
+    {
+        (
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            currentLiquidationThreshold,
+            ltv,
+            healthFactor
+        ) = i_aavePool.getUserAccountData(address(this));
+        return (
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            currentLiquidationThreshold,
+            ltv,
+            healthFactor
+        );
     }
 }
