@@ -205,7 +205,7 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
 
         nullifierHashs[_nullifierHash] = true;
 
-        aavePool.withdraw(usdcToken, amount, address(this));
+        aavePool.withdraw(usdcToken, lockInfo.amount, address(this));
         IERC20(usdcToken).safeTransfer(msg.sender, lockInfo.amount);
         totalStaked -= lockInfo.amount;
         lockInfo.valid = false;
@@ -213,33 +213,8 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
         emit Withdrawal(msg.sender, _nullifierHash, lockInfo.amount);
     }
 
-    function getAccountInformation()
-        external
-        view
-        returns (
-            uint256 totalCollateralBase,
-            uint256 totalDebtBase,
-            uint256 availableBorrowsBase,
-            uint256 currentLiquidationThreshold,
-            uint256 ltv,
-            uint256 healthFactor
-        )
-    {
-        (
-            totalCollateralBase,
-            totalDebtBase,
-            availableBorrowsBase,
-            currentLiquidationThreshold,
-            ltv,
-            healthFactor
-        ) = i_aavePool.getUserAccountData(address(this));
-        return (
-            totalCollateralBase,
-            totalDebtBase,
-            availableBorrowsBase,
-            currentLiquidationThreshold,
-            ltv,
-            healthFactor
-        );
+    function getReserveInterest() external view returns (uint256) {
+        uint256 interest = aavePool.getReserveNormalizedIncome(usdcToken);
+        return interest;
     }
 }
