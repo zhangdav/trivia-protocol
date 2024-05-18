@@ -12,14 +12,14 @@ module.exports = {
   },
 
   networks: {
-    sepolia: {
-      url: process.env.SEPOLIA_RPC_URL,
+    fuji: {
+      url: process.env.FUJI_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
     },
   },
   etherscan: {
     apiKey: {
-      sepolia: process.env.ETHERSCAN_API_KEY,
+      snowtrace: "snowtrace",
     },
   },
 };

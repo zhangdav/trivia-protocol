@@ -2,11 +2,10 @@
 pragma solidity 0.8.20;
 
 import {Hasher} from "./MiMCSponge.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface IVerifier {
     function verifyProof(
@@ -17,19 +16,17 @@ interface IVerifier {
     ) external;
 }
 
-contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
-    using SafeERC20 for IERC20;
-
+contract Trivia is Ownable, ERC20 {
     address public verifier;
     Hasher public hasher;
 
     IPool public aavePool;
-    address public usdcToken;
+    IERC20 public usdcToken;
 
     uint256 public totalStaked;
 
-    uint256 public constant LOCK_PERIOD = 90 days;
-    uint256 public timelockId;
+    uint256 public constant LOCK_PERIOD = 30 seconds;
+    uint256 public nextTimelockId;
 
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
@@ -72,7 +69,8 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
         uint256 indexed root,
         uint256[10] hashPairings,
         uint8[10] pairDirection,
-        uint256 amount
+        uint256 amount,
+        uint256 id
     );
     event Withdrawal(
         address indexed user,
@@ -85,31 +83,29 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
         address _verifier,
         address _usdcToken,
         address _aavePool
-    ) {
+    ) ERC20("Trivia", "Triva") Ownable(msg.sender) {
         hasher = Hasher(_hasher);
         verifier = _verifier;
-        usdcToken = _usdcToken;
+        usdcToken = IERC20(_usdcToken);
         aavePool = IPool(_aavePool);
-        __ERC20_init("TRIVIA", "TRIVIA");
-        __Ownable_init(msg.sender);
     }
 
     function deposit(uint256 amount, uint256 _commitment) external {
         require(amount > 0, "Cannot deposit zero tokens");
         require(
-            IERC20(usdcToken).balanceOf(msg.sender) >= amount,
+            usdcToken.balanceOf(msg.sender) >= amount,
             "Insufficient balance"
         );
         require(
-            IERC20(usdcToken).allowance(msg.sender, address(this)) >= amount,
+            usdcToken.allowance(msg.sender, address(this)) >= amount,
             "Insufficient allowance"
         );
         require(!commitments[_commitment], "duplicate commitment hash");
         require(nextLeafIdex < 2 ** treeLevel, "tree full");
 
-        IERC20(usdcToken).safeTransferFrom(msg.sender, address(this), amount);
-        IERC20(usdcToken).approve(address(aavePool), amount);
-        aavePool.supply(usdcToken, amount, address(this), 0);
+        usdcToken.transferFrom(msg.sender, address(this), amount);
+        usdcToken.approve(address(aavePool), amount);
+        aavePool.supply(address(usdcToken), amount, address(this), 0);
 
         timelockToken.push(
             timelockTokenInfo({
@@ -139,7 +135,6 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
                 right = levelDefaults[i];
                 hashPairings[i] = levelDefaults[i];
                 hashDirections[i] = 0;
-                // Right node
             } else {
                 left = lastLevelHash[i];
                 right = currentHash;
@@ -164,9 +159,11 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
         commitments[_commitment] = true;
 
         totalStaked += amount;
-        timelockId++;
+        nextTimelockId++;
 
-        emit Deposit(newRoot, hashPairings, hashDirections, amount);
+        uint256 timeLockId = nextTimelockId - 1;
+
+        emit Deposit(newRoot, hashPairings, hashDirections, amount, timeLockId);
     }
 
     function withdraw(
@@ -176,7 +173,7 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
         uint[2] calldata _pC,
         uint[2] calldata _pubSignals
     ) external {
-        require(id < timelockId, "Invalid id");
+        require(id < nextTimelockId, "Invalid id");
         timelockTokenInfo storage lockInfo = timelockToken[id];
 
         require(msg.sender == lockInfo.owner, "Only owner can redeem");
@@ -205,16 +202,16 @@ contract Trivia is ERC20Upgradeable, OwnableUpgradeable {
 
         nullifierHashs[_nullifierHash] = true;
 
-        aavePool.withdraw(usdcToken, lockInfo.amount, address(this));
-        IERC20(usdcToken).safeTransfer(msg.sender, lockInfo.amount);
+        require(
+            usdcToken.balanceOf(address(this)) >= lockInfo.amount,
+            "Contract insufficient balance"
+        );
+
+        aavePool.withdraw(address(usdcToken), lockInfo.amount, address(this));
+        usdcToken.transfer(msg.sender, lockInfo.amount);
         totalStaked -= lockInfo.amount;
         lockInfo.valid = false;
 
         emit Withdrawal(msg.sender, _nullifierHash, lockInfo.amount);
-    }
-
-    function getReserveInterest() external view returns (uint256) {
-        uint256 interest = aavePool.getReserveNormalizedIncome(usdcToken);
-        return interest;
     }
 }

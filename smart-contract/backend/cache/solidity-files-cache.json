@@ -38,8 +38,8 @@
       ]
     },
     "/Users/hosanna/trivia-dex/smart-contract/backend/contracts/Trivia.sol": {
-      "lastModificationDate": 1715986090335,
-      "contentHash": "f79d40f5eb9b920fde42e145f91b2f72",
+      "lastModificationDate": 1716046480437,
+      "contentHash": "b1f120fbfc64dcb3824b32ec00cc30cf",
       "sourceName": "contracts/Trivia.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -67,11 +67,10 @@
       },
       "imports": [
         "./MiMCSponge.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol",
         "@aave/core-v3/contracts/interfaces/IPool.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol",
-        "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol"
       ],
       "versionPragmas": [
         "0.8.20"
@@ -81,10 +80,10 @@
         "Trivia"
       ]
     },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
-      "lastModificationDate": 1715983614119,
-      "contentHash": "5517c8678c18eb1a8ba58810e7ca39ca",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+      "lastModificationDate": 1715983614121,
+      "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
+      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -109,12 +108,14 @@
           }
         }
       },
-      "imports": [],
+      "imports": [
+        "../utils/Context.sol"
+      ],
       "versionPragmas": [
         "^0.8.20"
       ],
       "artifacts": [
-        "IERC20"
+        "Ownable"
       ]
     },
     "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@aave/core-v3/contracts/interfaces/IPool.sol": {
@@ -156,10 +157,10 @@
         "IPool"
       ]
     },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol": {
-      "lastModificationDate": 1715983614121,
-      "contentHash": "697fd27924863e77c17dace2179018b2",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol": {
+      "lastModificationDate": 1715983617602,
+      "contentHash": "ca23b7c429c310a0837290e57cb08904",
+      "sourceName": "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -184,22 +185,18 @@
           }
         }
       },
-      "imports": [
-        "../IERC20.sol",
-        "../extensions/IERC20Permit.sol",
-        "../../../utils/Address.sol"
-      ],
+      "imports": [],
       "versionPragmas": [
-        "^0.8.20"
+        "^0.8.0"
       ],
       "artifacts": [
-        "SafeERC20"
+        "IERC20"
       ]
     },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol": {
-      "lastModificationDate": 1715983614106,
-      "contentHash": "b3da1b9397f87a1af1687499f423c8b5",
-      "sourceName": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol",
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
+      "lastModificationDate": 1715983614114,
+      "contentHash": "c6375ef25e84c90b3d15f9ec4eef218f",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -225,17 +222,52 @@
         }
       },
       "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-        "../../utils/ContextUpgradeable.sol",
-        "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
-        "../../proxy/utils/Initializable.sol"
+        "./IERC20.sol",
+        "./extensions/IERC20Metadata.sol",
+        "../../utils/Context.sol",
+        "../../interfaces/draft-IERC6093.sol"
       ],
       "versionPragmas": [
         "^0.8.20"
       ],
       "artifacts": [
-        "ERC20Upgradeable"
+        "ERC20"
+      ]
+    },
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/utils/Context.sol": {
+      "lastModificationDate": 1715983614110,
+      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Context"
       ]
     },
     "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@aave/core-v3/contracts/protocol/libraries/types/DataTypes.sol": {
@@ -310,10 +342,10 @@
         "IPoolAddressesProvider"
       ]
     },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/utils/Address.sol": {
-      "lastModificationDate": 1715983614109,
-      "contentHash": "79c699f80eb8a9b168cb34e37816f894",
-      "sourceName": "@openzeppelin/contracts/utils/Address.sol",
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/interfaces/draft-IERC6093.sol": {
+      "lastModificationDate": 1715983614111,
+      "contentHash": "4aefc698f77ecbace7f401257dfe182d",
+      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -343,13 +375,15 @@
         "^0.8.20"
       ],
       "artifacts": [
-        "Address"
+        "IERC1155Errors",
+        "IERC20Errors",
+        "IERC721Errors"
       ]
     },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol": {
+    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
       "lastModificationDate": 1715983614119,
-      "contentHash": "da291753fa4641f2c5837bfc4aa4c01b",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol",
+      "contentHash": "5517c8678c18eb1a8ba58810e7ca39ca",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -379,81 +413,7 @@
         "^0.8.20"
       ],
       "artifacts": [
-        "IERC20Permit"
-      ]
-    },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol": {
-      "lastModificationDate": 1715983614101,
-      "contentHash": "c28aaa25d083a9a55bd9ec9e0b785122",
-      "sourceName": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../proxy/utils/Initializable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ContextUpgradeable"
-      ]
-    },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol": {
-      "lastModificationDate": 1715983614112,
-      "contentHash": "f0cedd674b4863ee90d1521a92ab82df",
-      "sourceName": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Initializable"
+        "IERC20"
       ]
     },
     "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
@@ -492,44 +452,6 @@
       ],
       "artifacts": [
         "IERC20Metadata"
-      ]
-    },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts/interfaces/draft-IERC6093.sol": {
-      "lastModificationDate": 1715983614111,
-      "contentHash": "4aefc698f77ecbace7f401257dfe182d",
-      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "IERC1155Errors",
-        "IERC20Errors",
-        "IERC721Errors"
       ]
     },
     "/Users/hosanna/trivia-dex/smart-contract/backend/contracts/ReentrancyGuard.sol": {
@@ -602,45 +524,6 @@
       ],
       "artifacts": [
         "Groth16Verifier"
-      ]
-    },
-    "/Users/hosanna/trivia-dex/smart-contract/backend/node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol": {
-      "lastModificationDate": 1715983614112,
-      "contentHash": "77d30f3cd93f46b80b6f8f1ebc574ee4",
-      "sourceName": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../utils/ContextUpgradeable.sol",
-        "../proxy/utils/Initializable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "OwnableUpgradeable"
       ]
     }
   }

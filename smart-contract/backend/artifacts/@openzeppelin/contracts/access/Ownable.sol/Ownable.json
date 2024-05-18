@@ -1,18 +1,8 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "OwnableUpgradeable",
-  "sourceName": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol",
+  "contractName": "Ownable",
+  "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
   "abi": [
-    {
-      "inputs": [],
-      "name": "InvalidInitialization",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotInitializing",
-      "type": "error"
-    },
     {
       "inputs": [
         {
@@ -34,19 +24,6 @@
       ],
       "name": "OwnableUnauthorizedAccount",
       "type": "error"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint64",
-          "name": "version",
-          "type": "uint64"
-        }
-      ],
-      "name": "Initialized",
-      "type": "event"
     },
     {
       "anonymous": false,

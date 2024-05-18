@@ -4,16 +4,20 @@ import { ethers } from "ethers"
 
 const wc = require("../circuit/witness_calculator.js")
 
-// Ethereum sepolia
-// 0xE0B57Ec2692b20DbFDDAc4F80C95Fd25FA2dab8a
-// 0xa6463b02dcC56C3DB944775B6C4C1F3E8b6BAdA7
-// 0x3807B08AA236D5De7199Da8F15d14A672dF3989f
+// Avalanche fuji
+// 0x5133aa451Db4eb292175110f68630e6D07513e64
+// 0x0130BaE84601e8F8eAe02238c6fDD4E7591771dc
+// 0xE1a5C88369b587CbBC52CA9d7736C5Ec32EEF564
 
-const tornadoAddress = "0x3807B08AA236D5De7199Da8F15d14A672dF3989f"
+const triviaAddress = "0xE1a5C88369b587CbBC52CA9d7736C5Ec32EEF564"
+const usdcAddress = "0xCaC7Ffa82c0f43EBB0FC11FCd32123EcA46626cf"
 
-const tornadoJSON = require("../json/Tornado.json")
-const tornadoABI = tornadoJSON.abi
-const tornadoInterface = new ethers.utils.Interface(tornadoABI)
+const triviaJSON = require("../json/Trivia.json")
+const triviaABI = triviaJSON.abi
+const triviaInterface = new ethers.utils.Interface(triviaABI)
+
+const usdcJSON = require("../json/Usdc.json")
+const usdcABI = usdcJSON
 
 const ButtonState = { Normal: 0, Loading: 1, Disabled: 2 }
 
@@ -22,6 +26,7 @@ const Interface = () => {
     const [proofElements, updateProofElements] = useState(null)
     const [proofStringEl, updateProofStringEl] = useState(null)
     const [textArea, updateTextArea] = useState(null)
+    const [depositAmount, setDepositAmount] = useState("")
 
     // interface states
     const [section, updateSection] = useState("Deposit")
@@ -42,8 +47,8 @@ const Interface = () => {
             var accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
             var chainId = window.ethereum.networkVersion
 
-            if (chainId != 11155111) {
-                alert("Please switch to Goerli Testnet")
+            if (chainId != 43113) {
+                alert("Please switch to Avalanche fuji Testnet")
                 throw "wrong-chain"
             }
 
@@ -66,11 +71,31 @@ const Interface = () => {
 
         updateMetamaskButtonState(ButtonState.Normal)
     }
-    const depositEther = async () => {
-        updateDepositButtonState(ButtonState.Disabled)
 
+    const approveUSDC = async (amount) => {
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum)
+            const signer = provider.getSigner()
+            const usdcContract = new ethers.Contract(usdcAddress, usdcABI, signer)
+
+            const allowance = await usdcContract.allowance(account.address, triviaAddress)
+            if (allowance.lt(amount)) {
+                const tx = await usdcContract.approve(triviaAddress, amount)
+                await tx.wait()
+                console.log("USDC approved")
+            }
+        } catch (error) {
+            console.error("USDC approval failed", error)
+        }
+    }
+
+    const depositUSDC = async () => {
+        updateDepositButtonState(ButtonState.Disabled)
         const provider = new ethers.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
+
+        const amount = ethers.utils.parseUnits(depositAmount, 6) // USDC typically has 6 decimals
+        await approveUSDC(amount)
 
         const secret = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
         const nullifier = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
@@ -89,29 +114,19 @@ const Interface = () => {
         const commitment = r[1]
         const nullifierHash = r[2]
 
-        const value = ethers.BigNumber.from("100000000000000000").toHexString()
+        const contract = new ethers.Contract(triviaAddress, triviaABI, signer)
 
-        const contract = new ethers.Contract(tornadoAddress, tornadoABI, signer)
+        const estimatedGas = await contract.estimateGas.deposit(amount, commitment)
+        console.log("Estimated Gas:", estimatedGas.toString())
 
         const tx = {
-            to: tornadoAddress,
+            to: triviaAddress,
             from: account.address,
-            value: value,
-            data: tornadoInterface.encodeFunctionData("deposit", [commitment]),
+            data: triviaInterface.encodeFunctionData("deposit", [amount, commitment]),
+            gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
         }
 
         try {
-            const estimatedGas = await contract.estimateGas.deposit(commitment, { value: value })
-            console.log("Estimated Gas:", estimatedGas.toString())
-
-            const tx = {
-                to: tornadoAddress,
-                from: account.address,
-                value: value,
-                data: tornadoInterface.encodeFunctionData("deposit", [commitment]),
-                gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
-            }
-
             const txResponse = await signer.sendTransaction(tx)
             const receipt = await txResponse.wait()
             const txHash = receipt.transactionHash
@@ -158,8 +173,12 @@ const Interface = () => {
                 throw "empty-receipt"
             }
 
-            const log = receipt.logs[0]
-            const decodedData = tornadoInterface.decodeEventLog("Deposit", log.data, log.topics)
+            const log = receipt.logs[10]
+            console.log("Log data:", log.data)
+            console.log("Log topics:", log.topics)
+
+            const decodedData = triviaInterface.decodeEventLog("Deposit", log.data, log.topics)
+            console.log(decodedData)
 
             const SnarkJS = window["snarkjs"]
 
@@ -186,9 +205,9 @@ const Interface = () => {
                 publicSignals.slice(0, 2).map($u.BN256ToHex),
             ]
 
-            const callData = tornadoInterface.encodeFunctionData("withdraw", callInputs)
+            const callData = triviaInterface.encodeFunctionData("withdraw", [0, ...callInputs])
             const tx = {
-                to: tornadoAddress,
+                to: triviaAddress,
                 from: account.address,
                 data: callData,
             }
@@ -252,7 +271,7 @@ const Interface = () => {
                 ) : (
                     <div className="container">
                         <div className="navbar-left">
-                            <h5>NFTA-Tornado</h5>
+                            <h5>Trivia-Dex</h5>
                         </div>
                         <div className="navbar-right">
                             <button
@@ -337,16 +356,21 @@ const Interface = () => {
                                     </div>
                                 ) : (
                                     <div>
-                                        <p className="text-secondary">
-                                            Note: All deposits and withdrawals are of the same
-                                            denomination of 0.1 ETH.
-                                        </p>
+                                        <div className="form-group">
+                                            <label>Deposit Amount (USDC):</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={depositAmount}
+                                                onChange={(e) => setDepositAmount(e.target.value)}
+                                            />
+                                        </div>
                                         <button
                                             className="btn btn-success"
-                                            onClick={depositEther}
+                                            onClick={depositUSDC}
                                             disabled={depositButtonState == ButtonState.Disabled}
                                         >
-                                            <span className="small">Deposit 0.1 ETH</span>
+                                            <span className="small">Deposit USDC</span>
                                         </button>
                                     </div>
                                 )}
@@ -373,11 +397,8 @@ const Interface = () => {
                                     </div>
                                 ) : (
                                     <div>
-                                        <p className="text-secondary">
-                                            Note: All deposits and withdrawals are of the same
-                                            denomination of 0.1 ETH.
-                                        </p>
                                         <div className="form-group">
+                                            <label>Proof of Deposit:</label>
                                             <textarea
                                                 className="form-control"
                                                 style={{ resize: "none" }}
@@ -391,7 +412,7 @@ const Interface = () => {
                                             onClick={withdraw}
                                             disabled={withdrawButtonState == ButtonState.Disabled}
                                         >
-                                            <span className="small">Withdraw 0.1 ETH</span>
+                                            <span className="small">Withdraw</span>
                                         </button>
                                     </div>
                                 )}
