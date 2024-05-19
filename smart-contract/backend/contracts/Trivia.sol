@@ -28,6 +28,8 @@ contract Trivia is Ownable, ERC20 {
     uint256 public constant LOCK_PERIOD = 30 seconds;
     uint256 public nextTimelockId;
 
+    uint256 private constant ADDITIONAL_INTEREST_PRECISION = 1e2;
+
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
 
@@ -51,6 +53,8 @@ contract Trivia is Ownable, ERC20 {
     // Prevent double spending
     mapping(uint256 => bool) public nullifierHashs;
     mapping(uint256 => bool) public commitments;
+
+    mapping(address => bool) public isWhitelisted;
 
     uint256[10] levelDefaults = [
         96203452318750999908428454193706286135948977640678371184232379276209525313523,
@@ -77,6 +81,7 @@ contract Trivia is Ownable, ERC20 {
         uint256 indexed nullifierHash,
         uint256 amount
     );
+    event Whitelisted(address account, bool whitelisted);
 
     constructor(
         address _hasher,
@@ -106,6 +111,7 @@ contract Trivia is Ownable, ERC20 {
         usdcToken.transferFrom(msg.sender, address(this), amount);
         usdcToken.approve(address(aavePool), amount);
         aavePool.supply(address(usdcToken), amount, address(this), 0);
+        mint(msg.sender, amount);
 
         timelockToken.push(
             timelockTokenInfo({
@@ -202,16 +208,64 @@ contract Trivia is Ownable, ERC20 {
 
         nullifierHashs[_nullifierHash] = true;
 
+        uint256 withdrawableAmount = balanceOf(msg.sender);
+
         require(
-            usdcToken.balanceOf(address(this)) >= lockInfo.amount,
+            usdcToken.balanceOf(address(this)) >= withdrawableAmount,
             "Contract insufficient balance"
         );
 
+        transferFrom(msg.sender, address(this), withdrawableAmount);
+        _burn(address(this), withdrawableAmount);
+
         aavePool.withdraw(address(usdcToken), lockInfo.amount, address(this));
-        usdcToken.transfer(msg.sender, lockInfo.amount);
+        usdcToken.transfer(msg.sender, withdrawableAmount);
+
         totalStaked -= lockInfo.amount;
         lockInfo.valid = false;
 
-        emit Withdrawal(msg.sender, _nullifierHash, lockInfo.amount);
+        emit Withdrawal(msg.sender, _nullifierHash, withdrawableAmount);
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+    }
+
+    function checkTotalInterest() external view returns (uint256) {
+        (uint256 totalCollateralBase, , , , , ) = getAccountInformation();
+        uint256 totalInterest = totalCollateralBase -
+            (totalStaked * ADDITIONAL_INTEREST_PRECISION) /
+            ADDITIONAL_INTEREST_PRECISION;
+        return totalInterest;
+    }
+
+    function getAccountInformation()
+        internal
+        view
+        returns (
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 availableBorrowsBase,
+            uint256 currentLiquidationThreshold,
+            uint256 ltv,
+            uint256 healthFactor
+        )
+    {
+        (
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            currentLiquidationThreshold,
+            ltv,
+            healthFactor
+        ) = aavePool.getUserAccountData(address(this));
+        return (
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            currentLiquidationThreshold,
+            ltv,
+            healthFactor
+        );
     }
 }
