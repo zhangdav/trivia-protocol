@@ -258,7 +258,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         return rewardAmount / REWARD_SCALE;
     }
 
-    function distributeRewards(address[] memory users) internal {
+    function _distributeRewards(address[] memory users) internal {
         for (uint256 i = 0; i < users.length; i++) {
             uint256 rewardAmount = calcReward(users[i]);
             if (rewardAmount > 0) {
@@ -270,14 +270,14 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     }
 
     function checkTotalInterest() public view returns (uint256) {
-        (uint256 totalCollateralBase, , , , , ) = getAccountInformation();
+        (uint256 totalCollateralBase, , , , , ) = _getAccountInformation();
         uint256 totalInterest = totalCollateralBase -
             (totalStaked * ADDITIONAL_INTEREST_PRECISION) /
             ADDITIONAL_INTEREST_PRECISION;
         return totalInterest;
     }
 
-    function getAccountInformation()
+    function _getAccountInformation()
         internal
         view
         returns (
@@ -348,7 +348,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
             usersToReward.length > 0 ||
             (block.timestamp - lastRewardTimestamp) >= WEEKLY_CYCLE_DURATION
         ) {
-            distributeRewards(usersToReward);
+            _distributeRewards(usersToReward);
             delete usersToReward;
             lastRewardTimestamp = block.timestamp;
         }
