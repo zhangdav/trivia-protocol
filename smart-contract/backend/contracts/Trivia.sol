@@ -63,11 +63,11 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     mapping(uint256 => bool) public nullifierHashs;
     mapping(uint256 => bool) public commitments;
 
-    mapping(address => bool) public isWhitelisted;
-
     mapping(address => uint256) public stakerUSDCAmount;
 
     mapping(address => uint256) public userPoints;
+
+    mapping(address => bool) public isAdmin;
 
     uint256[10] levelDefaults = [
         96203452318750999908428454193706286135948977640678371184232379276209525313523,
@@ -111,8 +111,19 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         lastRewardTimestamp = block.timestamp;
     }
 
+    modifier onlyAdmin() {
+        require(isAdmin[msg.sender] = true, "Not isAdmin");
+        _;
+    }
+
+    // function to owner set administrator
+    function setAdmin(address user, bool _isAllowed) external onlyOwner {
+        require(user != address(0), "invalid user address");
+        isAdmin[user] = _isAllowed;
+    }
+
     // function to owner set user's reward
-    function setUsersToReward(address[] calldata users) external onlyOwner {
+    function setUsersToReward(address[] calldata users) external onlyAdmin {
         usersToReward = users;
     }
 
@@ -327,7 +338,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     function uploadPoints(
         address[] calldata users,
         uint256[] calldata points
-    ) external onlyOwner {
+    ) external onlyAdmin {
         require(
             users.length == points.length,
             "Users and points length mismatch"
