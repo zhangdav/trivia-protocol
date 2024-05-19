@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 import {Hasher} from "./MiMCSponge.sol";
 import {IERC20} from "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
@@ -16,7 +17,7 @@ interface IVerifier {
     ) external;
 }
 
-contract Trivia is Ownable, ERC20 {
+contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     address public verifier;
     Hasher public hasher;
 
@@ -25,10 +26,14 @@ contract Trivia is Ownable, ERC20 {
 
     uint256 public totalStaked;
 
-    uint256 public constant LOCK_PERIOD = 30 seconds;
+    uint256 public constant LOCK_PERIOD = 30 seconds; // default: 30 days
+    uint256 public constant WEEKLY_CYCLE_DURATION = 7 minutes; // default: 7 days
+    uint256 public lastRewardTimestamp;
     uint256 public nextTimelockId;
 
-    uint256 private constant ADDITIONAL_INTEREST_PRECISION = 1e2;
+    uint256 public constant ADDITIONAL_INTEREST_PRECISION = 1e2;
+    uint256 public constant ELIGIBILITY_AMOUNT = 10e6;
+    uint256 public constant REWARD_SCALE = 100;
 
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
@@ -37,6 +42,8 @@ contract Trivia is Ownable, ERC20 {
     it is placed at the location indicated by nextLeafIdex, 
     which is then incremented so that the next deposit commitment knows where it should be placed. */
     uint256 public nextLeafIdex = 0;
+
+    uint8 public constant DECIMALS = 6;
 
     struct timelockTokenInfo {
         address owner;
@@ -47,6 +54,8 @@ contract Trivia is Ownable, ERC20 {
 
     timelockTokenInfo[] public timelockToken;
 
+    address[] public usersToReward;
+
     // Storing the history of Merkle tree roots
     mapping(uint256 => bool) public roots;
     mapping(uint8 => uint256) public lastLevelHash;
@@ -55,6 +64,10 @@ contract Trivia is Ownable, ERC20 {
     mapping(uint256 => bool) public commitments;
 
     mapping(address => bool) public isWhitelisted;
+
+    mapping(address => uint256) public stakerUSDCAmount;
+
+    mapping(address => uint256) public userPoints;
 
     uint256[10] levelDefaults = [
         96203452318750999908428454193706286135948977640678371184232379276209525313523,
@@ -81,7 +94,9 @@ contract Trivia is Ownable, ERC20 {
         uint256 indexed nullifierHash,
         uint256 amount
     );
-    event Whitelisted(address account, bool whitelisted);
+    event PointsUploaded(address indexed user, uint256 points);
+
+    event RewardsDistributed(address indexed user, uint256 rewardAmount);
 
     constructor(
         address _hasher,
@@ -93,6 +108,11 @@ contract Trivia is Ownable, ERC20 {
         verifier = _verifier;
         usdcToken = IERC20(_usdcToken);
         aavePool = IPool(_aavePool);
+        lastRewardTimestamp = block.timestamp;
+    }
+
+    function setUsersToReward(address[] calldata users) external onlyOwner {
+        usersToReward = users;
     }
 
     function deposit(uint256 amount, uint256 _commitment) external {
@@ -164,6 +184,7 @@ contract Trivia is Ownable, ERC20 {
 
         commitments[_commitment] = true;
 
+        stakerUSDCAmount[msg.sender] += amount;
         totalStaked += amount;
         nextTimelockId++;
 
@@ -222,16 +243,33 @@ contract Trivia is Ownable, ERC20 {
         usdcToken.transfer(msg.sender, withdrawableAmount);
 
         totalStaked -= lockInfo.amount;
+        stakerUSDCAmount[msg.sender] -= lockInfo.amount;
         lockInfo.valid = false;
 
         emit Withdrawal(msg.sender, _nullifierHash, withdrawableAmount);
     }
 
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
+    function calcReward(address user) public view returns (uint256) {
+        uint256 userStake = stakerUSDCAmount[user];
+        uint256 totalInterest = checkTotalInterest();
+        uint256 rewardAmount = ((userStake * userPoints[user] * totalInterest) *
+            REWARD_SCALE) / totalStaked;
+
+        return rewardAmount / REWARD_SCALE;
     }
 
-    function checkTotalInterest() external view returns (uint256) {
+    function distributeRewards(address[] memory users) internal {
+        for (uint256 i = 0; i < users.length; i++) {
+            uint256 rewardAmount = calcReward(users[i]);
+            if (rewardAmount > 0) {
+                mint(users[i], rewardAmount);
+                emit RewardsDistributed(users[i], rewardAmount);
+            }
+            userPoints[users[i]] = 0;
+        }
+    }
+
+    function checkTotalInterest() public view returns (uint256) {
         (uint256 totalCollateralBase, , , , , ) = getAccountInformation();
         uint256 totalInterest = totalCollateralBase -
             (totalStaked * ADDITIONAL_INTEREST_PRECISION) /
@@ -267,5 +305,60 @@ contract Trivia is Ownable, ERC20 {
             ltv,
             healthFactor
         );
+    }
+
+    function checkEligibility(address user) external view returns (bool) {
+        if (stakerUSDCAmount[user] < ELIGIBILITY_AMOUNT) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    function uploadPoints(
+        address[] calldata users,
+        uint256[] calldata points
+    ) external onlyOwner {
+        require(
+            users.length == points.length,
+            "Users and points length mismatch"
+        );
+
+        for (uint256 i = 0; i < users.length; i++) {
+            userPoints[users[i]] += points[i];
+            emit PointsUploaded(users[i], points[i]);
+        }
+    }
+
+    function checkUpkeep(
+        bytes calldata
+    )
+        external
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
+        upkeepNeeded = (usersToReward.length > 0 ||
+            (block.timestamp - lastRewardTimestamp) >= WEEKLY_CYCLE_DURATION);
+        return (upkeepNeeded, performData);
+    }
+
+    function performUpkeep(bytes calldata) external override {
+        if (
+            usersToReward.length > 0 ||
+            (block.timestamp - lastRewardTimestamp) >= WEEKLY_CYCLE_DURATION
+        ) {
+            distributeRewards(usersToReward);
+            delete usersToReward;
+            lastRewardTimestamp = block.timestamp;
+        }
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return DECIMALS;
     }
 }

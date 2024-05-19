@@ -11,8 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "@aave/core-v3": "^1.19.3",
+    "@chainlink/contracts": "^1.1.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "chainlink": "github:smartcontractkit/chainlink",
     "dotenv": "^16.4.5",
     "ethers": "^5.7.2",
     "hardhat": "^2.22.2",
