@@ -111,10 +111,12 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         lastRewardTimestamp = block.timestamp;
     }
 
+    // function to owner set user's reward
     function setUsersToReward(address[] calldata users) external onlyOwner {
         usersToReward = users;
     }
 
+    // function to user deposit USDC and via ZKP generate a proof for user
     function deposit(uint256 amount, uint256 _commitment) external {
         require(amount > 0, "Cannot deposit zero tokens");
         require(
@@ -193,6 +195,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         emit Deposit(newRoot, hashPairings, hashDirections, amount, timeLockId);
     }
 
+    // function to user withdraw USDC after 3 months
     function withdraw(
         uint256 id,
         uint[2] calldata _pA,
@@ -249,6 +252,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         emit Withdrawal(msg.sender, _nullifierHash, withdrawableAmount);
     }
 
+    // function to calculate user reward
     function calcReward(address user) public view returns (uint256) {
         uint256 userStake = stakerUSDCAmount[user];
         uint256 totalInterest = checkTotalInterest();
@@ -258,6 +262,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         return rewardAmount / REWARD_SCALE;
     }
 
+    // function to use Chainlink Automation distrubute rewards to each users
     function _distributeRewards(address[] memory users) internal {
         for (uint256 i = 0; i < users.length; i++) {
             uint256 rewardAmount = calcReward(users[i]);
@@ -269,6 +274,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         }
     }
 
+    // function to check total Interest
     function checkTotalInterest() public view returns (uint256) {
         (uint256 totalCollateralBase, , , , , ) = _getAccountInformation();
         uint256 totalInterest = totalCollateralBase -
@@ -277,6 +283,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         return totalInterest;
     }
 
+    // function to get total collateral in aave pool (include interest)
     function _getAccountInformation()
         internal
         view
@@ -307,6 +314,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         );
     }
 
+    // function to check user eligibility to join quz
     function checkEligibility(address user) external view returns (bool) {
         if (stakerUSDCAmount[user] < ELIGIBILITY_AMOUNT) {
             return false;
@@ -315,6 +323,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         }
     }
 
+    // function to owner upload points for each user
     function uploadPoints(
         address[] calldata users,
         uint256[] calldata points
@@ -330,6 +339,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         }
     }
 
+    // function to use Chainlink Automation check weekly quz duration and players
     function checkUpkeep(
         bytes calldata
     )
@@ -343,6 +353,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         return (upkeepNeeded, performData);
     }
 
+    // function to use Chainlink Automation  weekly auto distribute rewards for each user
     function performUpkeep(bytes calldata) external override {
         if (
             usersToReward.length > 0 ||
@@ -354,10 +365,12 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         }
     }
 
+    // function to only owner can mint LP token
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
     }
 
+    // function to default LP token decimals equ USDC decimals to calculate rewards
     function decimals() public view virtual override returns (uint8) {
         return DECIMALS;
     }
