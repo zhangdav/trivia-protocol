@@ -10,11 +10,6 @@ export async function POST(req: NextRequest) {
 
     const generationConfig = { temperature: 0.8, maxOutputTokens: 700 };
 
-    //let currentDateTime = new Date();
-    //currentDateTime.setDate(currentDateTime.getDate() - 1);
-    //const currentDate = currentDateTime.toDateString();
-    //const currentTime = currentDateTime.toTimeString();
-
     const period = triviaPeriod;
     let eventPeriod = "happening this week";
     if(period == "nextweek"){
@@ -22,7 +17,6 @@ export async function POST(req: NextRequest) {
     } else if(period == "lastweek"){
         eventPeriod = "that happened last week";
     }
-    console.log(`question API triviaPeriod:'${period}' , eventPeriod:'${eventPeriod}'`);
 
     const systemPrompt = `You are a senior financial advisor and social network influencer with html knowledge. 
     The user will provide a html code with the calendar for Major U.S. Economic Reports & Fed Speakers (presented as tables with the fields: 'Time' with the time at U.S. Eastern time and date when the event is taking place, 'Report' with the description of the event taking place and an url/link with more information about it, 'Period' with the period of time to which the event applies, 'Actual' with the actual value reported after the event took place, 'Median Forecast' with the forecasted value calculated by financial analysts, 'Previous' with the previous value known from the event to use it as a reference) that you have to use to extract information about what is happening in the financial markets.
@@ -42,8 +36,6 @@ export async function POST(req: NextRequest) {
     If the a trivia question is not possible to be generated from the html code then the "status" field must return false, the "code" field must return 404, and the "error" field should have the text "In this moment It is not possible to create a trivia question for the events ${eventPeriod}, please try again later".
     `;
 
-    //const periodPrompt = `Please take into account that today is ${currentDate} and you MUST extract the events from the "${tableHeading}" table.`;
-
     try {
         const responseScraping = await fetch(triviaBaseUrl);
         const dataScraping = await responseScraping.text();
@@ -51,11 +43,6 @@ export async function POST(req: NextRequest) {
         const bodyEnd = dataScraping.indexOf('<div class="component component--layout layout--C1">');
        
         const dataScrapingBody = dataScraping.substring(bodyStart, bodyEnd);
-        /*let limit32k = 32000 * 2.5;
-        if (limit32k > dataScrapingBody.length) {
-            limit32k = dataScrapingBody.length - 1;
-        }
-        const dataScraping32k = dataScrapingBody.substring(0, limit32k);*/
         const messages = [
             {
                 role: "model", parts: [
@@ -64,13 +51,6 @@ export async function POST(req: NextRequest) {
                     },
                 ],
             },
-            /*{
-                role: "user", parts: [
-                    {
-                        text: periodPrompt,
-                    },
-                ],
-            },*/
             {
                 role: "user", parts: [
                     {
@@ -89,7 +69,7 @@ export async function POST(req: NextRequest) {
             text
         });
     } catch (error: any) {
-        console.log("error:", error);
+        //console.log("error:", error);
         if (error) {
             let text = "Unable to process this request. Please contact the support team and show this error: " + error.message;
             if (error.code == "content_filter") {

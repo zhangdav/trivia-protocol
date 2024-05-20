@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
             text
         });
     } catch (error: any) {
-        console.log("error:",error);
+        //console.log("error:",error);
         if (error) {
             let text = "Unable to process this request. Please contact the support team and show this error: " + error.message;
             if (error.code == "content_filter") {
