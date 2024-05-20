@@ -33,7 +33,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
 
     uint256 public constant ADDITIONAL_INTEREST_PRECISION = 1e2;
     uint256 public constant ELIGIBILITY_AMOUNT = 10e6;
-    uint256 public constant REWARD_SCALE = 100;
+    uint256 public constant REWARD_SCALE = 1000;
 
     // Merkle Tree: Can process 2^10 = 1024 leaf node for deposits
     uint8 public treeLevel = 10;
