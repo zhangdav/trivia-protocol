@@ -26,10 +26,23 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
 
     uint256 public totalStaked;
 
-    uint256 public constant LOCK_PERIOD = 30 seconds; // default: 30 days
-    uint256 public constant WEEKLY_CYCLE_DURATION = 7 minutes; // default: 7 days
+    uint256 public constant WEEK_TIME = 7 days;
+
+    // TODO:
+    // here just for test, but default: 30 days
+    uint256 public lockPeriod = 30 seconds;
+
+    // TODO:
+    // here just for test, but default: 7 days
+    uint256 public interval = 7 minutes;
+
     uint256 public lastRewardTimestamp;
+
     uint256 public nextTimelockId;
+    uint256 public quizId;
+
+    uint256 public lastWeeklyTimestamp;
+    uint256 public lastWeeklyInterest;
 
     uint256 public constant ADDITIONAL_INTEREST_PRECISION = 1e2;
     uint256 public constant ELIGIBILITY_AMOUNT = 10e6;
@@ -55,6 +68,8 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     timelockTokenInfo[] public timelockToken;
 
     address[] public usersToReward;
+    mapping(uint256 => uint256) public quizRewards;
+    mapping(uint256 => uint256) public quizWinners;
 
     // Storing the history of Merkle tree roots
     mapping(uint256 => bool) public roots;
@@ -103,7 +118,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         address _verifier,
         address _usdcToken,
         address _aavePool
-    ) ERC20("Trivia", "Triva") Ownable(msg.sender) {
+    ) ERC20("TRIVIA", "TRIVIA") Ownable(msg.sender) {
         hasher = Hasher(_hasher);
         verifier = _verifier;
         usdcToken = IERC20(_usdcToken);
@@ -125,6 +140,18 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     // function to owner set user's reward
     function setUsersToReward(address[] calldata users) external onlyAdmin {
         usersToReward = users;
+    }
+
+    // function to owner set weekly interval
+    function setInterval(uint256 _newInterval) external onlyOwner {
+        require(_newInterval > 0, "valid new interval");
+        interval = _newInterval;
+    }
+
+    // function to owner set lock period
+    function setLockPeriod(uint256 _newPeriod) external onlyOwner {
+        require(_newPeriod > 0, "valid period");
+        lockPeriod = _newPeriod;
     }
 
     // function to user deposit USDC and via ZKP generate a proof for user
@@ -219,7 +246,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
 
         require(msg.sender == lockInfo.owner, "Only owner can redeem");
         require(
-            block.timestamp >= lockInfo.timelockStart + LOCK_PERIOD,
+            block.timestamp >= lockInfo.timelockStart + lockPeriod,
             "Still in lock period"
         );
         require(lockInfo.valid, "Not valid");
@@ -275,14 +302,22 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
 
     // function to use Chainlink Automation distrubute rewards to each users
     function _distributeRewards(address[] memory users) internal {
+        uint256 totalRewards = 0;
+        uint256 winnersCount = 0;
         for (uint256 i = 0; i < users.length; i++) {
             uint256 rewardAmount = calcReward(users[i]);
             if (rewardAmount > 0) {
                 mint(users[i], rewardAmount);
+                totalRewards += rewardAmount;
+                winnersCount++;
                 emit RewardsDistributed(users[i], rewardAmount);
             }
             userPoints[users[i]] = 0;
         }
+        quizRewards[quizId] = totalRewards;
+        quizWinners[quizId] = winnersCount;
+
+        quizId++;
     }
 
     // function to check total Interest
@@ -292,6 +327,24 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
             (totalStaked * ADDITIONAL_INTEREST_PRECISION) /
             ADDITIONAL_INTEREST_PRECISION;
         return totalInterest;
+    }
+
+    // function to check weekly interest
+    function checkWeeklyInterest() public returns (uint256) {
+        if (block.timestamp - lastWeeklyTimestamp >= WEEK_TIME) {
+            uint256 totalInterest = checkTotalInterest();
+            if (lastWeeklyInterest == 0) {
+                lastWeeklyInterest = totalInterest;
+                return lastWeeklyInterest;
+            } else {
+                uint256 weeklyInterest = totalInterest - lastWeeklyInterest;
+                lastWeeklyInterest = totalInterest;
+                lastWeeklyTimestamp = block.timestamp;
+                return weeklyInterest;
+            }
+        } else {
+            return 0;
+        }
     }
 
     // function to get total collateral in aave pool (include interest)
@@ -360,7 +413,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         returns (bool upkeepNeeded, bytes memory performData)
     {
         upkeepNeeded = (usersToReward.length > 0 ||
-            (block.timestamp - lastRewardTimestamp) >= WEEKLY_CYCLE_DURATION);
+            (block.timestamp - lastRewardTimestamp) >= interval);
         return (upkeepNeeded, performData);
     }
 
@@ -368,7 +421,7 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     function performUpkeep(bytes calldata) external override {
         if (
             usersToReward.length > 0 ||
-            (block.timestamp - lastRewardTimestamp) >= WEEKLY_CYCLE_DURATION
+            (block.timestamp - lastRewardTimestamp) >= interval
         ) {
             _distributeRewards(usersToReward);
             delete usersToReward;
