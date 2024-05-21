@@ -243,8 +243,6 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
     ) external {
         require(id < nextTimelockId, "Invalid id");
         timelockTokenInfo storage lockInfo = timelockToken[id];
-
-        require(msg.sender == lockInfo.owner, "Only owner can redeem");
         require(
             block.timestamp >= lockInfo.timelockStart + lockPeriod,
             "Still in lock period"
@@ -271,16 +269,13 @@ contract Trivia is Ownable, ERC20, AutomationCompatibleInterface {
         nullifierHashs[_nullifierHash] = true;
 
         uint256 withdrawableAmount = balanceOf(msg.sender);
+        super._burn(msg.sender, withdrawableAmount);
 
-        require(
-            usdcToken.balanceOf(address(this)) >= withdrawableAmount,
-            "Contract insufficient balance"
+        aavePool.withdraw(
+            address(usdcToken),
+            withdrawableAmount,
+            address(this)
         );
-
-        transferFrom(msg.sender, address(this), withdrawableAmount);
-        _burn(address(this), withdrawableAmount);
-
-        aavePool.withdraw(address(usdcToken), lockInfo.amount, address(this));
         usdcToken.transfer(msg.sender, withdrawableAmount);
 
         totalStaked -= lockInfo.amount;

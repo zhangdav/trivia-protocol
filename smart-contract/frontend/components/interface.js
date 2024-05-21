@@ -5,11 +5,11 @@ import { ethers } from "ethers"
 const wc = require("../circuit/witness_calculator.js")
 
 // Avalanche fuji
-// 0x5133aa451Db4eb292175110f68630e6D07513e64
-// 0x0130BaE84601e8F8eAe02238c6fDD4E7591771dc
-// 0xE1a5C88369b587CbBC52CA9d7736C5Ec32EEF564
+// 0x309EDfE14Cb366C5b5E2501B01FfA0F95A8FbB13
+// 0xc0332e9c202d7ceD6ef7927394eee0E5e50b3F67
+// 0x5574e61FE92d315Af0715AC3e3db6F61CD7934E7
 
-const triviaAddress = "0xE1a5C88369b587CbBC52CA9d7736C5Ec32EEF564"
+const triviaAddress = "0x5574e61FE92d315Af0715AC3e3db6F61CD7934E7"
 const usdcAddress = "0xCaC7Ffa82c0f43EBB0FC11FCd32123EcA46626cf"
 
 const triviaJSON = require("../json/Trivia.json")
@@ -119,15 +119,22 @@ const Interface = () => {
         const estimatedGas = await contract.estimateGas.deposit(amount, commitment)
         console.log("Estimated Gas:", estimatedGas.toString())
 
-        const tx = {
-            to: triviaAddress,
-            from: account.address,
-            data: triviaInterface.encodeFunctionData("deposit", [amount, commitment]),
-            gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
-        }
+        // const tx = {
+        //     to: triviaAddress,
+        //     from: account.address,
+        //     data: triviaInterface.encodeFunctionData("deposit", [amount, commitment]),
+        //     gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
+        // }
 
         try {
-            const txResponse = await signer.sendTransaction(tx)
+            // const txResponse = await signer.sendTransaction(tx)
+            // const receipt = await txResponse.wait()
+            // const txHash = receipt.transactionHash
+
+            const txResponse = await contract.deposit(amount, commitment, {
+                gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
+            })
+
             const receipt = await txResponse.wait()
             const txHash = receipt.transactionHash
 
@@ -148,14 +155,18 @@ const Interface = () => {
 
         updateDepositButtonState(ButtonState.Normal)
     }
+
     const copyProof = () => {
         if (!!proofStringEl) {
             flashCopiedMessage()
             navigator.clipboard.writeText(proofStringEl.innerHTML)
         }
     }
+
     const withdraw = async () => {
         updateWithdrawButtonState(ButtonState.Disabled)
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        const signer = provider.getSigner()
 
         if (!textArea || !textArea.value) {
             alert("Please input the proof of deposit string.")
@@ -173,7 +184,7 @@ const Interface = () => {
                 throw "empty-receipt"
             }
 
-            const log = receipt.logs[10]
+            const log = receipt.logs[11]
             console.log("Log data:", log.data)
             console.log("Log topics:", log.topics)
 
@@ -205,16 +216,36 @@ const Interface = () => {
                 publicSignals.slice(0, 2).map($u.BN256ToHex),
             ]
 
-            const callData = triviaInterface.encodeFunctionData("withdraw", [0, ...callInputs])
+            // const callData = triviaInterface.encodeFunctionData("withdraw", [0, ...callInputs])
+            // const tx = {
+            //     to: triviaAddress,
+            //     from: account.address,
+            //     data: callData,
+            // }
+            // const txHash = await window.ethereum.request({
+            //     method: "eth_sendTransaction",
+            //     params: [tx],
+            // })
+
+            const contract = new ethers.Contract(triviaAddress, triviaABI, signer)
+
+            const estimatedGas = await contract.estimateGas.withdraw(0, ...callInputs)
+            console.log("Estimated Gas:", estimatedGas.toString())
+
             const tx = {
                 to: triviaAddress,
                 from: account.address,
-                data: callData,
+                data: triviaInterface.encodeFunctionData("withdraw", [0, ...callInputs]),
+                gasLimit: estimatedGas.add(ethers.BigNumber.from(100000)),
             }
-            const txHash = await window.ethereum.request({
-                method: "eth_sendTransaction",
-                params: [tx],
-            })
+
+            try {
+                const txResponse = await signer.sendTransaction(tx)
+                const receipt = await txResponse.wait()
+                // const txHash = receipt.transactionHash
+            } catch (e) {
+                console.log(e)
+            }
 
             var receipt
             while (!receipt) {

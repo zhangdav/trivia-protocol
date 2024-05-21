@@ -563,8 +563,8 @@
       ]
     },
     "/Users/hosanna/Trivia-dex/smart-contract/backend/contracts/Trivia.sol": {
-      "lastModificationDate": 1716288339660,
-      "contentHash": "60e99ac38dd0cb10c511b67ff81124dd",
+      "lastModificationDate": 1716295598617,
+      "contentHash": "e4453eb01988bfa60aee6c23cafea8d3",
       "sourceName": "contracts/Trivia.sol",
       "solcConfig": {
         "version": "0.8.20",
