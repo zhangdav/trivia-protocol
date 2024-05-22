@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link"
 import { CardTitle, CardHeader, CardContent, Card } from "@/components/ui/card"
+import { JSX, SVGProps } from "react";
 
 export default function PrizePoolComponent() {
   return (
@@ -42,7 +43,7 @@ export default function PrizePoolComponent() {
 }
 
 
-function CurrencyIcon(props) {
+function CurrencyIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}
