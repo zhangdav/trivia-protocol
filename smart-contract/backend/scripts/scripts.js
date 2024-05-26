@@ -26,7 +26,7 @@ async function main() {
   // const setUsersTx = await trivia.setUsersToReward(params1);
   // await setUsersTx.wait();
 
-  console.log("total Staked is:", await trivia.nextTimelockId());
+  // console.log("total Staked is:", await trivia.nextTimelockId());
 }
 
 // We recommend this pattern to be able to use async/await everywhere
