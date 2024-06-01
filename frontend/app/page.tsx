@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link"
@@ -29,7 +31,7 @@ export default function Home() {
             </h1>
           </div>
 
-            <QuizCounterComponent />
+            <QuizCounterComponent initialDays={2} initialHours={16} initialMinutes={34} initialSeconds={28} />
             
             <Button className="text-[#70f7c9] border-[#70f7c9] mb-8" variant="outline">Bet to win</Button>
             <Link className="text-xl text-white font-bold underline" href="#">
