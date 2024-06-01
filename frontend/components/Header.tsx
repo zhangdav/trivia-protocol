@@ -13,9 +13,14 @@ export default function HeaderComponent() {
 
   return (
     <header className="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
-          <Link href="/">
-            <h1 className="text-5xl ml-8">Trivia</h1>
-          </Link> 
+          {/* <Link href="/">
+            <h1 className="text-5xl ml-8">Trivia Scholar</h1>
+          </Link>  */}
+          <Link className="flex items-center gap-2 ml-8" href="/">
+            <Image src={"/logo.png"} alt="Trivia" height={50} width={60} />
+            <span className="font-semibold text-3xl ml-1">Trivia Scholar</span>
+          </Link>
+
           { isConnected && (
           <nav className="hidden md:flex mt-6">
             <Link className="text-gray-300 hover:text-white text-2xl mx-4" href="#">
@@ -42,3 +47,5 @@ export default function HeaderComponent() {
     </header>
     );
 }
+
+

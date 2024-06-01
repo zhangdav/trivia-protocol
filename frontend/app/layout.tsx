@@ -31,8 +31,8 @@ import {
 
 const config = getDefaultConfig({
   appName: 'TriviaDex',
-  projectId: 'YOUR_PROJECT_ID',
-  chains: [avalanche, avalancheFuji],
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID as string,
+  chains: [avalancheFuji],
   ssr: true, // If your dApp uses server side rendering (SSR)
 });
 
