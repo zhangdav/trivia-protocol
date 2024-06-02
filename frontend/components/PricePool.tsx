@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link"
 import { CardTitle, CardHeader, CardContent, Card } from "@/components/ui/card"
 import { JSX, SVGProps } from "react";
+import DepositButtonComponent from "./DepositButton";
 
 export default function PrizePoolComponent() {
   return (
@@ -10,7 +11,8 @@ export default function PrizePoolComponent() {
 
     <div className="flex justify-left items-center flex-col md:flex-row my-4">
       <h2 className="text-4xl font-semibold mb-4 md:mb-0 ml-2">Prize Pool</h2>
-      <Button className="text-[#70f7c9] border-[#70f7c9] ml-8 bg-[#0d0e12]" variant="outline" >+ Make deposit</Button>
+      {/* <Button className="text-[#70f7c9] border-[#70f7c9] ml-8 bg-[#0d0e12]" variant="outline" >+ Make deposit</Button> */}
+      <DepositButtonComponent />
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
