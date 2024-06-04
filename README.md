@@ -21,4 +21,3 @@ What we look with this project is to help users understanding and making money i
 
 ![image](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/002/916/164/datas/original.jpg)
 
-
