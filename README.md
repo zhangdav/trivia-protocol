@@ -1,4 +1,4 @@
-# TRIVIA Your prize linked saving account DeFi protocol with an AI powered financial education component!
+# TRIVIA Your prize linked saving account DeFi protocol with an AI powered financial education component
 
 ![Untitled-2024-05-08-0734](https://github.com/Solidityarchitect/Trivia-dex/assets/125990317/577d8777-10d7-4115-b793-2f8e506ac222)
 
